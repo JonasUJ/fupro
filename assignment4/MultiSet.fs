@@ -26,13 +26,13 @@ module MultiSet =
     let foldBack f (S s) acc = Map.foldBack f s acc
     let ofList lst = List.fold (flip addSingle) empty lst
 
-    let toList (s: MultiSet<'a>) =
+    let toList (S s) =
         List.collect (fun (k, v) -> List.replicate (int v) k) (Map.toList s)
 
     let map f (s: MultiSet<'a>) = s |> toList |> List.map f |> ofList
 
     let union (S s1) (s2: MultiSet<'a>) =
-        Map.map (fun k v -> Math.Max(v, numItems k s2)) s1
+        Map.map (fun k v -> Math.Max(v, numItems k s2)) s1 |> S
 
     let sum (s1: MultiSet<'a>) (s2: MultiSet<'a>) = fold (fun s k v -> add k v s) s1 s2
     let subtract (s1: MultiSet<'a>) (s2: MultiSet<'a>) = fold (fun s k v -> remove k v s) s1 s2

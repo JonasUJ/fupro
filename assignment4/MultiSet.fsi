@@ -1,7 +1,7 @@
 namespace assignment4
 
 module MultiSet =
-    type MultiSet<'a when 'a: comparison> = Map<'a, uint32>
+    type MultiSet<'a when 'a: comparison> = S of Map<'a, uint32>
     val empty: MultiSet<'a>
     val isEmpty: MultiSet<'a> -> bool
     val size: MultiSet<'a> -> uint32
