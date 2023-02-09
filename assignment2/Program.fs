@@ -32,29 +32,36 @@ let rec combinePair =
 
 // Exercise 2.4
 
-type complex = Complex of real: float * imag: float
+type complex = { real: float; imag: float }
 
-let mkComplex real imag = Complex(real, imag)
+let mkComplex real imag = { real = real; imag = imag }
 
-let complexToPair (Complex (real, imag)) = (real, imag)
+let complexToPair c = (c.real, c.imag)
 
-let (|+|) (Complex (a, b)) (Complex (c, d)) = Complex(a + c, b + d)
-let (|*|) (Complex (a, b)) (Complex (c, d)) = Complex(a * c - b * d, b * c - a * d)
-let negate (Complex (a, b)) = Complex(-a, -b)
+let (|+|) { real = a; imag = b } { real = c; imag = d } = { real = a + c; imag = b + d }
+
+let (|*|) { real = a; imag = b } { real = c; imag = d } =
+    { real = a * c - b * d
+      imag = b * c + a * d }
+
+let negate c = { real = -c.real; imag = -c.imag }
+
 let (|-|) lhs rhs : complex = lhs |+| negate rhs
 
-let invert (Complex (a, b)) =
-    Complex(a / (a * a + b * b), -b / (a * a + b * b))
+let inverse { real = a; imag = b } =
+    { real = a / (a * a + b * b)
+      imag = -b / (a * a + b * b) }
 
-let (|/|) lhs rhs = lhs |*| invert rhs
+let (|/|) lhs rhs = lhs |*| inverse rhs
 
 // Exercise 2.5
 
-let explode1 (s: string) = s.ToCharArray() |> List.ofArray
+let explode1 (s: string) = Seq.toList s
 
-let explode2 (s: string) =
-    [ for i in 0 .. s.Length do
-          s.Chars i ]
+let rec explode2 =
+    function
+    | "" -> []
+    | s -> s.[0] :: explode2 s.[1..]
 
 // Exercise 2.6
 
@@ -62,12 +69,9 @@ let implode cs =
     List.fold (fun (sb: StringBuilder) (c: char) -> sb.Append c) (StringBuilder()) cs
     |> fun s -> s.ToString()
 
-let rec rev =
-    function
-    | head :: tail -> rev tail @ [ head ]
-    | lst -> lst
-
-let implodeRev cs = implode (rev cs)
+let implodeRev cs =
+    List.foldBack (fun (c: char) (sb: StringBuilder) -> sb.Append c) cs (StringBuilder())
+    |> fun s -> s.ToString()
 
 // Exercise 2.7
 
@@ -75,15 +79,11 @@ let toUpper = explode1 >> List.map Char.ToUpper >> implode
 
 // Exercise 2.8
 
-// Do we really have to do CPS just to test the time functions? I get a stack overflow otherwise...
-let ack (m, n) =
-    let rec _ack =
-        function
-        | 0, n, f -> f (n + 1)
-        | m, 0, f -> _ack (m - 1, 1, f)
-        | m, n, f -> _ack (m, n - 1, (fun x -> _ack (m - 1, x, f)))
-
-    _ack (m, n, id)
+let rec ack =
+    function
+    | 0, n-> n + 1
+    | m, 0-> ack (m - 1, 1)
+    | m, n-> ack (m - 1, ack (m, n - 1))
 
 // Exercise 2.9
 
@@ -104,8 +104,7 @@ let rec downto3 f n e =
 
 let fac n = downto3 (*) n 1
 
-let rec range g n =
-    if n <= 0 then [] else range g (n - 1) @ [ g n ]
+let rec range g n = downto3 (fun k lst -> g k :: lst) n [] 
 
 // Assignment 2.11
 
@@ -117,9 +116,9 @@ type squareFun = word -> int -> int -> int
 
 // Assignment 2.12
 
-let singleLetterScore (w: word) pos acc = snd w[pos] * 1 + acc
-let doubleLetterScore (w: word) pos acc = snd w[pos] * 2 + acc
-let tripleLetterScore (w: word) pos acc = snd w[pos] * 3 + acc
+let singleLetterScore (w: word) pos acc = snd w.[pos] * 1 + acc
+let doubleLetterScore (w: word) pos acc = snd w.[pos] * 2 + acc
+let tripleLetterScore (w: word) pos acc = snd w.[pos] * 3 + acc
 
 // Assignment 2.13
 
@@ -128,8 +127,10 @@ let tripleWordScore (_: word) (_: int) acc = acc * 3
 
 // Assignment 2.14
 
-let isConsonant (l: char * int) =
-    "BCDFGHJKLMNPQRSTVWXZbcdfghjklmnpqrstvwxz".Contains(fst l)
+let isVowel letter =
+    "aeiouæøå".Contains(fst letter |> Char.ToLower)
+
+let isConsonant = isVowel >> not
 
 let oddConsonants (w: word) (_: int) acc =
     ((List.filter isConsonant w).Length % 2 * -2 + 1) * acc
