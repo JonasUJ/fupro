@@ -50,12 +50,14 @@ let arithTripleWordScore = N 3 .*. V "_acc_"
 
 type word = (char * int) list
 
+let hello = [('H', 4); ('E', 1); ('L', 1); ('L', 1); ('O', 1)]
+
 let rec arithEval a (w: word) (s: state) =
     match a with
     | N i -> i
     | V v -> s.TryFind v |> Option.defaultValue 0
     | WL -> w.Length
-    | PV i -> snd w[arithEval i w s]
+    | PV i -> snd w.[arithEval i w s]
     | Add (lhs, rhs) -> (arithEval lhs w s) + (arithEval rhs w s)
     | Sub (lhs, rhs) -> (arithEval lhs w s) - (arithEval rhs w s)
     | Mul (lhs, rhs) -> (arithEval lhs w s) * (arithEval rhs w s)
@@ -73,7 +75,7 @@ let rec charEval c (w: word) (s: state) =
     | C c -> c
     | ToUpper c -> Char.ToUpper(charEval c w s)
     | ToLower c -> Char.ToLower(charEval c w s)
-    | CV a -> fst w[arithEval a w s]
+    | CV a -> fst w.[arithEval a w s]
 
 // Assignment 3.5
 
@@ -187,7 +189,13 @@ let oddConsonants =
         Ass("_result_", V "_acc_"),
         While(
             V "i" .<. WL,
-            Seq(ITE(IsVowel(CV(V "i")), Skip, Ass("_result_", V "_result_" .*. N -1)), Ass("i", V "i" .+. N 1))
+            Seq(
+                ITE(
+                    IsVowel(CV(V "i")),
+                    Skip,
+                    Ass("_result_", V "_result_" .*. N -1)),
+                Ass("i", V "i" .+. N 1)
+            )
         )
     )
 
