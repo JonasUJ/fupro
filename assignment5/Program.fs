@@ -4,7 +4,7 @@ open System
 
 let sum m n =
     let rec sum' m' n' acc =
-        if n' = 0 then acc else sum' m' (n' - 1) (m' + n' + acc)
+        if n' = 0 then m' + acc else sum' m' (n' - 1) (m' + n' + acc)
 
     sum' m n 0
 
