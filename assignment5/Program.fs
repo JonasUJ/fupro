@@ -122,3 +122,6 @@ and charEvalTail expr (w: word) (state: Map<string, int>) cont =
     | ToUpper expr' -> charEvalTail expr' w state (Char.ToUpper >> cont)
     | ToLower expr' -> charEvalTail expr' w state (Char.ToLower >> cont)
     | IntToChar expr' -> arithEvalTail expr' w state (fun i -> i + int '0' |> char |> cont)
+
+let arithEval a w s = arithEvalTail a w s id
+let charEval c w s = charEvalTail c w s id
