@@ -50,10 +50,16 @@ let pop: SM<unit> = S(fun s -> Success((), { s with vars = List.tail s.vars }))
 let wordLength: SM<int> = S(fun s -> Success(List.length s.word, s))
 
 let characterValue (pos: int) : SM<char> =
-    S(fun s -> Success(fst s.word.[pos], s))
+    S(fun s ->
+        match List.tryItem pos s.word with
+        | Some w -> Success(fst w, s)
+        | None -> Failure(IndexOutOfBounds pos))
 
 let pointValue (pos: int) : SM<int> =
-    S(fun s -> Success(snd s.word.[pos], s))
+    S(fun s ->
+        match List.tryItem pos s.word with
+        | Some w -> Success(snd w, s)
+        | None -> Failure(IndexOutOfBounds pos))
 
 let lookup (x: string) : SM<int> =
     let rec aux =
@@ -70,7 +76,13 @@ let lookup (x: string) : SM<int> =
         | None -> Failure(VarNotFound x))
 
 let declare (var: string) : SM<unit> =
-    
+    S(fun s ->
+        if Set.contains var s.reserved then
+            Failure(ReservedName var)
+        else if Map.containsKey var (List.head s.vars) then
+            Failure(VarExists var)
+        else
+            Success((), { s with vars = Map.add var 0 (List.head s.vars) :: (List.tail s.vars) }))
 
 let update (var: string) (value: int) : SM<unit> =
     S(fun s ->
