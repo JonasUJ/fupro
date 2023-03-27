@@ -129,7 +129,14 @@ type stmnt = (* statements *)
     | ITE of bExp * stmnt * stmnt (* if-then-else statement *)
     | While of bExp * stmnt (* while statement *)
 
-let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
+let rec stmntEval stmnt : SM<unit> =
+    match stmnt with
+    | Declare var -> declare var
+    | Ass (var, expr) -> arithEval expr >>= update var
+    | Skip -> ret ()
+    | Seq (one, two) -> stmntEval one >>>= stmntEval two
+    | ITE (guard, one, two) -> push >>>= boolEval guard >>= (fun b -> if b then stmntEval one else stmntEval two) >>>= pop
+    | While (guard, stmt) -> push >>>= boolEval guard >>= (fun b -> if b then stmntEval stmt >>>= stmntEval (While(guard, stmt)) else ret ()) >>>= pop
 
 (* Part 3 (Optional) *)
 
