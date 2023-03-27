@@ -10,24 +10,25 @@ let hello = [ ('H', 4); ('E', 1); ('L', 1); ('L', 1); ('O', 1) ]
 let state = mkState [ ("x", 5); ("y", 42) ] hello [ "_pos_"; "_result_" ]
 let emptyState = mkState [] [] []
 
-let op f a b = 
+let op f a b =
     a >>= (fun lhs -> b >>= (fun rhs -> ret (f lhs rhs)))
 
 let add = op (+)
 
 let sub = op (-)
-    
+
 let mul = op (*)
 
 let opFail f a b =
     a
     >>= (fun lhs -> b >>= (fun rhs -> if rhs = 0 then fail DivisionByZero else ret (f lhs rhs)))
-    
+
 let div = opFail (/)
-    
+
 let modulo = opFail (%)
 
-let isVowel c = Seq.contains (Char.ToLower c) "aeiouæøå"
+let isVowel c =
+    Seq.contains (Char.ToLower c) "aeiouæøå"
 
 type aExp =
     | N of int
@@ -100,6 +101,7 @@ let rec arithEval a : SM<int> =
     | Div (lhs, rhs) -> div (arithEval lhs) (arithEval rhs)
     | Mod (lhs, rhs) -> modulo (arithEval lhs) (arithEval rhs)
     | CharToInt expr -> charEval expr >>= (int >> ret)
+
 and charEval c : SM<char> =
     match c with
     | C c -> ret c
@@ -112,8 +114,12 @@ and boolEval b : SM<bool> =
     match b with
     | TT -> ret true
     | FF -> ret false
-    | AEq (lhs, rhs) -> arithEval lhs >>= (fun lhs' -> arithEval rhs >>= (fun rhs' -> lhs' = rhs' |> ret))
-    | ALt (lhs, rhs) -> arithEval lhs >>= (fun lhs' -> arithEval rhs >>= (fun rhs' -> lhs' < rhs' |> ret))
+    | AEq (lhs, rhs) ->
+        arithEval lhs
+        >>= (fun lhs' -> arithEval rhs >>= (fun rhs' -> lhs' = rhs' |> ret))
+    | ALt (lhs, rhs) ->
+        arithEval lhs
+        >>= (fun lhs' -> arithEval rhs >>= (fun rhs' -> lhs' < rhs' |> ret))
     | Not expr -> boolEval expr >>= (not >> ret)
     | Conj (lhs, rhs) -> boolEval lhs >>= (fun lhs' -> boolEval rhs >>= (fun rhs' -> ret (lhs' && rhs')))
     | IsVowel expr -> charEval expr >>= (isVowel >> ret)
@@ -135,8 +141,18 @@ let rec stmntEval stmnt : SM<unit> =
     | Ass (var, expr) -> arithEval expr >>= update var
     | Skip -> ret ()
     | Seq (one, two) -> stmntEval one >>>= stmntEval two
-    | ITE (guard, one, two) -> push >>>= boolEval guard >>= (fun b -> if b then stmntEval one else stmntEval two) >>>= pop
-    | While (guard, stmt) -> push >>>= boolEval guard >>= (fun b -> if b then stmntEval stmt >>>= stmntEval (While(guard, stmt)) else ret ()) >>>= pop
+    | ITE (guard, one, two) ->
+        push >>>= boolEval guard
+        >>= (fun b -> if b then stmntEval one else stmntEval two)
+        >>>= pop
+    | While (guard, stmt) ->
+        push >>>= boolEval guard
+        >>= (fun b ->
+            if b then
+                stmntEval stmt >>>= stmntEval (While(guard, stmt))
+            else
+                stmntEval Skip)
+        >>>= pop
 
 (* Part 3 (Optional) *)
 
@@ -150,11 +166,146 @@ type StateBuilder() =
 
 let prog = new StateBuilder()
 
-let arithEval2 a = failwith "Not implemented"
-let charEval2 c = failwith "Not implemented"
-let rec boolEval2 b = failwith "Not implemented"
+let rec op2 f lhs rhs =
+    prog {
+        let! lhs' = arithEval2 lhs
+        let! rhs' = arithEval2 rhs
+        return f lhs' rhs'
+    }
 
-let stmntEval2 stm = failwith "Not implemented"
+and opFail2 f lhs rhs =
+    prog {
+        let! lhs' = arithEval2 lhs
+        let! rhs' = arithEval2 rhs
+
+        if rhs' = 0 then
+            return! fail DivisionByZero
+        else
+            return f lhs' rhs'
+    }
+
+and arithEval2 a =
+    match a with
+    | N n -> prog { return n }
+    | V var -> prog { return! lookup var }
+    | WL -> prog { return! wordLength }
+    | PV expr ->
+        prog {
+            let! v = arithEval2 expr
+            return! pointValue v
+        }
+    | Add (lhs, rhs) -> op2 (+) lhs rhs
+    | Sub (lhs, rhs) -> op2 (-) lhs rhs
+    | Mul (lhs, rhs) -> op2 (*) lhs rhs
+    | Div (lhs, rhs) -> opFail2 (/) lhs rhs
+    | Mod (lhs, rhs) -> opFail2 (%) lhs rhs
+    | CharToInt expr ->
+        prog {
+            let! v = charEval2 expr
+            return int v
+        }
+
+and charEval2 c =
+    match c with
+    | C c -> prog { return c }
+    | CV expr ->
+        prog {
+            let! v = arithEval2 expr
+            return! characterValue v
+        }
+    | ToUpper expr ->
+        prog {
+            let! v = charEval2 expr
+            return Char.ToUpper v
+        }
+    | ToLower expr ->
+        prog {
+            let! v = charEval2 expr
+            return Char.ToLower v
+        }
+    | IntToChar expr ->
+        prog {
+            let! v = arithEval2 expr
+            return char v
+        }
+
+and boolEval2 b =
+    match b with
+    | TT -> prog { return true }
+    | FF -> prog { return false }
+    | AEq (lhs, rhs) ->
+        prog {
+            let! lhs' = arithEval2 lhs
+            let! rhs' = arithEval2 rhs
+            return lhs' = rhs'
+        }
+    | ALt (lhs, rhs) ->
+        prog {
+            let! lhs' = arithEval2 lhs
+            let! rhs' = arithEval2 rhs
+            return lhs' < rhs'
+        }
+    | Not expr ->
+        prog {
+            let! v = boolEval2 expr
+            return not v
+        }
+    | Conj (lhs, rhs) ->
+        prog {
+            let! lhs' = boolEval2 lhs
+            let! rhs' = boolEval2 rhs
+            return lhs' && rhs'
+        }
+    | IsVowel expr ->
+        prog {
+            let! v = charEval2 expr
+            return isVowel v
+        }
+    | IsLetter expr ->
+        prog {
+            let! v = charEval2 expr
+            return Char.IsLetter v
+        }
+    | IsDigit expr ->
+        prog {
+            let! v = charEval2 expr
+            return Char.IsDigit v
+        }
+
+let rec stmntEval2 stm =
+    match stm with
+    | Declare var -> prog { do! declare var }
+    | Ass (var, expr) ->
+        prog {
+            let! v = arithEval2 expr
+            do! update var v
+        }
+    | Skip -> prog { return () }
+    | Seq (one, two) ->
+        prog {
+            do! stmntEval2 one
+            do! stmntEval2 two
+        }
+    | ITE (guard, one, two) ->
+        prog {
+            do! push
+            let! v = boolEval2 guard
+            if v then do! stmntEval2 one else do! stmntEval2 two
+            do! pop
+        }
+    | While (guard, stmt) ->
+        prog {
+            do! push
+            let! v = boolEval2 guard
+
+            if v then
+                do! stmntEval2 stmt
+                do! stmntEval2 (While(guard, stmt))
+            else
+                do! stmntEval2 Skip
+
+            do! pop
+        }
 
 (* Part 4 (Optional) *)
 
