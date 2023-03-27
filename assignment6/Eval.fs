@@ -1,5 +1,6 @@
 ﻿module Eval
 
+open System
 open StateMonad
 open Types
 
@@ -9,8 +10,24 @@ let hello = [ ('H', 4); ('E', 1); ('L', 1); ('L', 1); ('O', 1) ]
 let state = mkState [ ("x", 5); ("y", 42) ] hello [ "_pos_"; "_result_" ]
 let emptyState = mkState [] [] []
 
-let add a b = failwith "Not implemented"
-let div a b = failwith "Not implemented"
+let op f a b = 
+    a >>= (fun lhs -> b >>= (fun rhs -> ret (f lhs rhs)))
+
+let add = op (+)
+
+let sub = op (-)
+    
+let mul = op (*)
+
+let opFail f a b =
+    a
+    >>= (fun lhs -> b >>= (fun rhs -> if rhs = 0 then fail DivisionByZero else ret (f lhs rhs)))
+    
+let div = opFail (/)
+    
+let modulo = opFail (%)
+
+let isVowel c = Seq.contains (Char.ToLower c) "aeiouæøå"
 
 type aExp =
     | N of int
@@ -71,11 +88,37 @@ let (.>=.) a b =
 let (.>.) a b =
     ~~(a .=. b) .&&. (a .>=. b) (* numeric greater than *)
 
-let arithEval a : SM<int> = failwith "Not implemented"
+let rec arithEval a : SM<int> =
+    match a with
+    | N n -> ret n
+    | V var -> lookup var
+    | WL -> wordLength
+    | PV expr -> arithEval expr >>= pointValue
+    | Add (lhs, rhs) -> add (arithEval lhs) (arithEval rhs)
+    | Sub (lhs, rhs) -> sub (arithEval lhs) (arithEval rhs)
+    | Mul (lhs, rhs) -> mul (arithEval lhs) (arithEval rhs)
+    | Div (lhs, rhs) -> div (arithEval lhs) (arithEval rhs)
+    | Mod (lhs, rhs) -> modulo (arithEval lhs) (arithEval rhs)
+    | CharToInt expr -> charEval expr >>= (int >> ret)
+and charEval c : SM<char> =
+    match c with
+    | C c -> ret c
+    | CV expr -> arithEval expr >>= characterValue
+    | ToUpper expr -> charEval expr >>= (Char.ToUpper >> ret)
+    | ToLower expr -> charEval expr >>= (Char.ToLower >> ret)
+    | IntToChar expr -> arithEval expr >>= (char >> ret)
 
-let charEval c : SM<char> = failwith "Not implemented"
-
-let boolEval b : SM<bool> = failwith "Not implemented"
+and boolEval b : SM<bool> =
+    match b with
+    | TT -> ret true
+    | FF -> ret false
+    | AEq (lhs, rhs) -> arithEval lhs >>= (fun lhs' -> arithEval rhs >>= (fun rhs' -> lhs' = rhs' |> ret))
+    | ALt (lhs, rhs) -> arithEval lhs >>= (fun lhs' -> arithEval rhs >>= (fun rhs' -> lhs' < rhs' |> ret))
+    | Not expr -> boolEval expr >>= (not >> ret)
+    | Conj (lhs, rhs) -> boolEval lhs >>= (fun lhs' -> boolEval rhs >>= (fun rhs' -> ret (lhs' && rhs')))
+    | IsVowel expr -> charEval expr >>= (isVowel >> ret)
+    | IsLetter expr -> charEval expr >>= (Char.IsLetter >> ret)
+    | IsDigit expr -> charEval expr >>= (Char.IsDigit >> ret)
 
 
 type stmnt = (* statements *)
