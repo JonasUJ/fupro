@@ -1,6 +1,7 @@
 ﻿module Eval
 
     open StateMonad
+    open Types
 
     (* Code for testing *)
 
@@ -69,13 +70,13 @@
     let boolEval b : SM<bool> = failwith "Not implemented"
 
 
-    type stm =                (* statements *)
-    | Declare of string       (* variable declaration *)
-    | Ass of string * aExp    (* variable assignment *)
-    | Skip                    (* nop *)
-    | Seq of stm * stm        (* sequential composition *)
-    | ITE of bExp * stm * stm (* if-then-else statement *)
-    | While of bExp * stm     (* while statement *)
+    type stmnt =                  (* statements *)
+    | Declare of string           (* variable declaration *)
+    | Ass of string * aExp        (* variable assignment *)
+    | Skip                        (* nop *)
+    | Seq of stmnt * stmnt        (* sequential composition *)
+    | ITE of bExp * stmnt * stmnt (* if-then-else statement *)
+    | While of bExp * stmnt       (* while statement *)
 
     let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
 
@@ -99,21 +100,16 @@
 
 (* Part 4 (Optional) *) 
 
-    type word = (char * int) list
-    type squareFun = word -> int -> int -> Result<int, Error>
-
     let stmntToSquareFun stm = failwith "Not implemented"
-
-
-    type coord = int * int
-
-    type boardFun = coord -> Result<squareFun option, Error> 
 
     let stmntToBoardFun stm m = failwith "Not implemented"
 
+    type squareStmnt = Map<int, stmnt>
+    let stmntsToSquare stms = failwith "Not implemented"
+
     type board = {
         center        : coord
-        defaultSquare : squareFun
+        defaultSquare : square
         squares       : boardFun
     }
 

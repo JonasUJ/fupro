@@ -3,6 +3,8 @@
 
 open StateMonad
 open Eval
+open Types
+
     
 [<EntryPoint>]
 let main argv =
@@ -291,12 +293,31 @@ let main argv =
     printfn "%A" (singleLetterScore hello 0 42)
     printfn "%A" (doubleLetterScore hello 0 42)
     printfn "%A" (tripleLetterScore hello 0 42)
+    printfn "%A" (doubleWordScore hello 0 42)
+    printfn "%A" (tripleWordScore hello 0 42)
     printfn "%A" (oddVowels hello 5 50)
     printfn "%A" (oddVowels [('H', 4); ('E', 1); ('L', 1)] 5 50)
     printfn ""
     
-    let emptyBoard = Skip
-    let singleLetterBoard = Ass ("_result_", N 0)
+    let SLS : squareStmnt = Map.empty |> Map.add 0 stmntSingleLetterScore
+    let DLS : squareStmnt = Map.empty |> Map.add 0 stmntDoubleLetterScore
+    let TLS : squareStmnt = Map.empty |> Map.add 0 stmntTripleLetterScore
+
+    let DWS : squareStmnt = SLS |> Map.add 1 stmntDoubleWordScore
+    let TWS : squareStmnt = SLS |> Map.add 1 stmntTripleWordScore
+    
+    printfn "Testing stmntsToSquare"
+    printfn "%A" ((SLS |> stmntsToSquare |> Map.find 0) hello 0 0)
+    printfn "%A" ((DLS |> stmntsToSquare |> Map.find 0) hello 0 0)
+    printfn "%A" ((TLS |> stmntsToSquare |> Map.find 0) hello 0 0)
+    printfn "%A" ((SLS |> stmntsToSquare |> Map.find 0) hello 0 42)
+    printfn "%A" ((DLS |> stmntsToSquare |> Map.find 0) hello 0 42)
+    printfn "%A" ((TLS |> stmntsToSquare |> Map.find 0) hello 0 42)
+    printfn "%A" ((DWS |> stmntsToSquare |> Map.find 0) hello 0 42)
+    printfn "%A" ((TWS |> stmntsToSquare |> Map.find 0) hello 0 42)
+    printfn "%A" ((DWS |> stmntsToSquare |> Map.find 1) hello 0 42)
+    printfn "%A" ((TWS |> stmntsToSquare |> Map.find 1) hello 0 42)
+    printfn ""
 
     let abs v result = ITE (v .<. N 0, Ass (result, v .*. N -1), Ass (result, v))
 
@@ -330,18 +351,6 @@ let main argv =
                                             (checkSquare insideCheck 0
                                                 (Ass ("_result_", N -1))))))))))
 
-    let boardMap = [(0, singleLetterScore); (1, doubleLetterScore); (2, tripleLetterScore); 
-                    (3, doubleWordScore); (4, tripleWordScore)] |> Map.ofList
-
-    let evalSquare w pos acc =
-        function
-        | Success (Some f) -> 
-          match f w pos acc with
-          | Success res -> Success (Some res)
-          | Failure e   -> Failure e
-        | Success None -> Success None
-        | Failure e        -> Failure e
-
     let toString =
         function
         | Success (Some x) -> string x
@@ -353,39 +362,51 @@ let main argv =
         # # # # # # # # # # # # # # # # # # # # # 
         # # # # # # # # # # # # # # # # # # # # # 
         # # # # # # # # # # # # # # # # # # # # # 
-        # # # 9 4 4 5 4 4 4 9 4 4 4 5 4 4 9 # # # 
-        # # # 4 6 4 4 4 6 4 4 4 6 4 4 4 6 4 # # # 
-        # # # 4 4 6 4 4 4 5 4 5 4 4 4 6 4 4 # # # 
-        # # # 5 4 4 6 4 4 4 5 4 4 4 6 4 4 5 # # # 
-        # # # 4 4 4 4 6 4 4 4 4 4 6 4 4 4 4 # # # 
-        # # # 4 6 4 4 4 6 4 4 4 6 4 4 4 6 4 # # # 
-        # # # 4 4 5 4 4 4 5 4 5 4 4 4 5 4 4 # # # 
-        # # # 9 4 4 5 4 4 4 4 4 4 4 5 4 4 9 # # # 
-        # # # 4 4 5 4 4 4 5 4 5 4 4 4 5 4 4 # # # 
-        # # # 4 6 4 4 4 6 4 4 4 6 4 4 4 6 4 # # # 
-        # # # 4 4 4 4 6 4 4 4 4 4 6 4 4 4 4 # # # 
-        # # # 5 4 4 6 4 4 4 5 4 4 4 6 4 4 5 # # # 
-        # # # 4 4 6 4 4 4 5 4 5 4 4 4 6 4 4 # # # 
-        # # # 4 6 4 4 4 6 4 4 4 6 4 4 4 6 4 # # # 
-        # # # 9 4 4 5 4 4 4 9 4 4 4 5 4 4 9 # # # 
+        # # # 4 0 0 1 0 0 0 4 0 0 0 1 0 0 4 # # # 
+        # # # 0 3 0 0 0 2 0 0 0 2 0 0 0 3 0 # # # 
+        # # # 0 0 3 0 0 0 1 0 1 0 0 0 3 0 0 # # # 
+        # # # 1 0 0 3 0 0 0 1 0 0 0 3 0 0 1 # # # 
+        # # # 0 0 0 0 3 0 0 0 0 0 3 0 0 0 0 # # # 
+        # # # 0 2 0 0 0 2 0 0 0 2 0 0 0 2 0 # # # 
+        # # # 0 0 1 0 0 0 1 0 1 0 0 0 1 0 0 # # # 
+        # # # 4 0 0 1 0 0 0 0 0 0 0 1 0 0 4 # # # 
+        # # # 0 0 1 0 0 0 1 0 1 0 0 0 1 0 0 # # # 
+        # # # 0 2 0 0 0 2 0 0 0 2 0 0 0 2 0 # # # 
+        # # # 0 0 0 0 3 0 0 0 0 0 3 0 0 0 0 # # # 
+        # # # 1 0 0 3 0 0 0 1 0 0 0 3 0 0 1 # # # 
+        # # # 0 0 3 0 0 0 1 0 1 0 0 0 3 0 0 # # # 
+        # # # 0 3 0 0 0 2 0 0 0 2 0 0 0 3 0 # # # 
+        # # # 4 0 0 1 0 0 0 4 0 0 0 1 0 0 4 # # # 
         # # # # # # # # # # # # # # # # # # # # # 
         # # # # # # # # # # # # # # # # # # # # # 
-        # # # # # # # # # # # # # # # # # # # # #     
+        # # # # # # # # # # # # # # # # # # # # #   
     *)
-
+    let ids = [(0, SLS); (1, DLS); (2, TLS); (3, DWS); (4, TWS)] |> Map.ofList
+    let boardTest = [(0, 0); (1, 1); (2, 2); (3, 3); (4, 4)] |> Map.ofList
+    
     for y in -10..10 do
         for x in -10..10 do
-            printf "%s " (stmntToBoardFun standardBoardFun boardMap (x, y) |> evalSquare hello 1 3 |> toString)
+            printf "%s "
+                (stmntToBoardFun standardBoardFun boardTest (x, y) |> toString)
         printfn ""
 
-    let ids = [(0, stmntSingleLetterScore); (1, stmntDoubleLetterScore); (2, stmntTripleLetterScore); 
-               (3, stmntDoubleWordScore); (4, stmntTripleWordScore)]
+    
     printfn ""
 
 
     printfn "Testing mkBoard"
     let standardBoard = 
-        mkBoard (0, 0) stmntSingleLetterScore standardBoardFun ids
+        mkBoard (0, 0) 0 standardBoardFun ids
+
+    
+    let evalSquare w pos acc =
+        function
+        | Success (Some m) -> 
+          match (Map.find 0 m) w pos acc with
+          | Success res -> Success (Some res)
+          | Failure e   -> Failure e
+        | Success None -> Success None
+        | Failure e        -> Failure e
 
 
     for y in -10..10 do
