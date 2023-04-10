@@ -145,14 +145,13 @@ let rec stmntEval stmnt : SM<unit> =
         push >>>= boolEval guard
         >>= (fun b -> if b then stmntEval one else stmntEval two)
         >>>= pop
-    | While (guard, stmt) ->
-        push >>>= boolEval guard
+    | While (guard, stmt) as wh ->
+        boolEval guard
         >>= (fun b ->
             if b then
-                stmntEval stmt >>>= stmntEval (While(guard, stmt))
+                push >>>= stmntEval stmt >>>= pop >>>= stmntEval wh
             else
-                stmntEval Skip)
-        >>>= pop
+                ret ())
 
 (* Part 3 (Optional) *)
 
@@ -293,18 +292,17 @@ let rec stmntEval2 stm =
             if v then do! stmntEval2 one else do! stmntEval2 two
             do! pop
         }
-    | While (guard, stmt) ->
+    | While (guard, stmt) as wh ->
         prog {
-            do! push
             let! v = boolEval2 guard
 
             if v then
+                do! push
                 do! stmntEval2 stmt
-                do! stmntEval2 (While(guard, stmt))
+                do! pop
+                do! stmntEval2 wh
             else
                 do! stmntEval2 Skip
-
-            do! pop
         }
 
 (* Part 4 (Optional) *)
