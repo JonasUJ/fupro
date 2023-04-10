@@ -106,9 +106,97 @@ do
     aref
     := choice [ PointValueParse; ChatToIntParse; NegParse; NParse; VParse; ParParse ]
 
-let BexpParse = pstring "not implemented"
+let BStmtParse, bstmtref = createParserForwardedToRef<bExp> ()
+let BOpParse, bopref = createParserForwardedToRef<bExp> ()
+let BAtomParse, batomref = createParserForwardedToRef<bExp> ()
 
-let stmntParse = pstring "not implemented"
+let BexpParse = BStmtParse
+
+let ConjParse = binop (pstring "/\\") BOpParse BStmtParse |>> Conj <?> "Conj"
+
+let DisjParse =
+    binop (pstring "\\/") BOpParse BStmtParse
+    |>> (fun (a, b) -> Not(Conj(Not(a), Not(b))))
+    <?> "Disj"
+
+do bstmtref := choice [ ConjParse; DisjParse; BOpParse ]
+
+let EqParse = binop (pchar '=') AexpParse AexpParse |>> AEq <?> "Eq"
+
+let NeParse =
+    binop (pstring "<>") AexpParse AexpParse |>> (fun p -> Not(AEq p)) <?> "Ne"
+
+let LtParse = binop (pchar '<') AexpParse AexpParse |>> ALt <?> "Lt"
+
+let LeParse =
+    binop (pstring "<=") AexpParse AexpParse |>> (fun (a, b) -> Not(ALt(b, a)))
+    <?> "Le"
+
+let GtParse =
+    binop (pchar '>') AexpParse AexpParse
+    |>> (fun (a, b) -> Conj(Not(ALt(a, b)), Not(AEq(a, b))))
+    <?> "Gt"
+
+let GeParse =
+    binop (pstring ">=") AexpParse AexpParse |>> (fun (a, b) -> Not(ALt(a, b)))
+    <?> "Ge"
+
+do
+    bopref
+    := choice [ EqParse; NeParse; LtParse; LeParse; GtParse; GeParse; BAtomParse ]
+
+let TrueParse = pTrue |>> (fun _ -> TT) <?> "True"
+let FalseParse = pFalse |>> (fun _ -> FF) <?> "False"
+let BNegParse = pchar '~' >>. BStmtParse |>> Not <?> "BNeg"
+let IsDigitParse = pIsDigit >*>. parenthesise CexpParse |>> IsDigit <?> "IsDigit"
+
+let IsLetterParse =
+    pIsLetter >*>. parenthesise CexpParse |>> IsLetter <?> "IsLetter"
+
+let IsVowelParse = pIsVowel >*>. parenthesise CexpParse |>> IsVowel <?> "IsVowel"
+let BParParse = parenthesise BStmtParse
+
+do
+    batomref
+    := choice
+        [ TrueParse
+          FalseParse
+          BNegParse
+          IsDigitParse
+          IsLetterParse
+          IsVowelParse
+          BParParse ]
+
+let SingleStmtParse, singlestmtref = createParserForwardedToRef<stmnt> ()
+let StmtParse, stmtref = createParserForwardedToRef<stmnt> ()
+
+let AssignmentParse = pid .>*> pstring ":=" .>*>. AexpParse |>> Ass <?> "Assignment"
+let DeclareParse = pdeclare >>. spaces1 >>. pid |>> Declare <?> "Declare"
+let SeqParse = SingleStmtParse .>*> pchar ';' .>*>. StmtParse |>> Seq <?> "Seq"
+let brackets p = pchar '{' >*>. p .>*> pchar '}'
+
+let IfThenElseParse =
+    pif >*>. parenthesise BexpParse .>*> pthen .>*>. brackets StmtParse .>*> pelse
+    .>*>. brackets StmtParse
+    |>> (fun ((guard, s1), s2) -> ITE(guard, s1, s2))
+    <?> "IfThenElse"
+
+let IfThenParse =
+    pif >*>. parenthesise BexpParse .>*> pthen .>*>. brackets StmtParse
+    |>> (fun (guard, s1) -> ITE(guard, s1, Skip))
+    <?> "IfThen"
+
+let WhileParse =
+    pwhile >*>. parenthesise BexpParse .>*> pdo .>*>. brackets StmtParse |>> While
+    <?> "While"
+
+let stmntParse = StmtParse
+
+do
+    singlestmtref
+    := choice [ AssignmentParse; DeclareParse; IfThenElseParse; IfThenParse; WhileParse ]
+
+do stmtref := SeqParse <|> SingleStmtParse
 
 
 let parseSquareProg _ = failwith "not implemented"
