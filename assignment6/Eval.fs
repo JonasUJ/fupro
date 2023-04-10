@@ -309,16 +309,37 @@ let rec stmntEval2 stm =
 
 (* Part 4 (Optional) *)
 
-let stmntToSquareFun stm = failwith "Not implemented"
+let stmntToSquareFun stm =
+    let inner w pos acc =
+        let state =
+            mkState [ ("_pos_", pos); ("_acc_", acc); ("_result_", 0) ] w [ "_pos_"; "_acc_"; "_result_" ]
 
-let stmntToBoardFun stm m = failwith "Not implemented"
+        let monad = stmntEval stm >>>= lookup "_result_"
+        evalSM state monad
+
+    inner
+
+let stmntToBoardFun stm t (x, y) =
+    let state =
+        mkState [ ("_x_", x); ("_y_", y); ("_result_", 0) ] [] [ "_x_"; "_y_"; "_result_" ]
+
+    let monad = stmntEval stm >>>= lookup "_result_"
+
+    match evalSM state monad with
+    | Success id -> Success(Map.tryFind id t)
+    | Failure error -> Failure error
 
 type squareStmnt = Map<int, stmnt>
-let stmntsToSquare stms = failwith "Not implemented"
+
+let stmntsToSquare stms =
+    Map.map (fun _ -> stmntToSquareFun) stms
 
 type board =
     { center: coord
       defaultSquare: square
       squares: boardFun }
 
-let mkBoard c defaultSq boardStmnt ids = failwith "Not implemented"
+let mkBoard c ds boardStmnt m =
+    { center = c
+      defaultSquare = Map.find ds m |> stmntsToSquare
+      squares = Map.map (fun _ -> stmntsToSquare) m |> stmntToBoardFun boardStmnt }
